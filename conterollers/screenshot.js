@@ -1,6 +1,5 @@
 const puppeteer = require("puppeteer");
 const fs = require("fs");
-const path = require("path");
 
 const downloadImage = async (req, res) => {
   let { url } = req.query;
@@ -14,12 +13,20 @@ const downloadImage = async (req, res) => {
   }
 
   try {
+    // التحقق من وجود Chrome في المسار المحدد
+    const chromePath = "/opt/render/.cache/puppeteer/chrome";
+    if (!fs.existsSync(chromePath)) {
+      console.error("Chrome not found at", chromePath);
+      return res.status(500).send("Chrome not installed in the expected path.");
+    }
+
+    // إطلاق Puppeteer مع المسار الصحيح
     const browser = await puppeteer.launch({
       headless: true,
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
-      executablePath: "/opt/render/.cache/puppeteer/chrome",
+      executablePath: chromePath,
     });
-    
+
     const page = await browser.newPage();
     await page.setViewport({ width: 1280, height: 800 });
 
@@ -31,14 +38,10 @@ const downloadImage = async (req, res) => {
 
     console.log("Page navigation successful. Capturing screenshot...");
 
-    // تحديد مسار حفظ الصورة
-    const imagePath = path.join(__dirname, "debug_final.png");
+    // التقاط لقطة الشاشة كـ Buffer
+    const screenshotBuffer = await page.screenshot({ fullPage: true });
 
-    // التقاط لقطة الشاشة
-    await page.screenshot({ path: imagePath, fullPage: true });
-
-    console.log(`Screenshot saved at: ${imagePath}`);
-
+    console.log("Screenshot captured successfully.");
     await browser.close();
 
     // إرسال الصورة كاستجابة
@@ -47,17 +50,16 @@ const downloadImage = async (req, res) => {
       "Content-Disposition",
       'attachment; filename="invoice.png"'
     );
-
-    // قراءة الصورة من المسار وإرسالها
-    const imageBuffer = fs.readFileSync(imagePath);
-    res.send(imageBuffer);
+    res.send(screenshotBuffer);
   } catch (err) {
-    console.error("Error generating image:", err.message);
+    console.error("Error generating image:", err.stack || err.message);
 
     if (err.message.includes("ERR_NAME_NOT_RESOLVED")) {
       res.status(400).send("Invalid URL or cannot resolve the domain.");
     } else if (err.message.includes("Timeout")) {
       res.status(408).send("Request timed out. Please try again later.");
+    } else if (err.message.includes("executablePath")) {
+      res.status(500).send("Browser was not found at the configured executablePath.");
     } else {
       res.status(500).send("Error generating the image file");
     }
