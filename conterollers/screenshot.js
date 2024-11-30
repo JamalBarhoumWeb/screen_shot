@@ -1,6 +1,4 @@
 const puppeteer = require("puppeteer");
-const fs = require("fs");
-const path = require("path");
 
 const downloadImage = async (req, res) => {
   let { url } = req.query;
@@ -30,14 +28,10 @@ const downloadImage = async (req, res) => {
 
     console.log("Page navigation successful. Capturing screenshot...");
 
-    // تحديد مسار حفظ الصورة
-    const imagePath = path.join(__dirname, "debug_final.png");
+    // التقاط لقطة الشاشة كـ Buffer
+    const screenshotBuffer = await page.screenshot({ fullPage: true });
 
-    // التقاط لقطة الشاشة
-    await page.screenshot({ path: imagePath, fullPage: true });
-
-    console.log(`Screenshot saved at: ${imagePath}`);
-
+    console.log("Screenshot captured successfully.");
     await browser.close();
 
     // إرسال الصورة كاستجابة
@@ -46,12 +40,9 @@ const downloadImage = async (req, res) => {
       "Content-Disposition",
       'attachment; filename="invoice.png"'
     );
-
-    // قراءة الصورة من المسار وإرسالها
-    const imageBuffer = fs.readFileSync(imagePath);
-    res.send(imageBuffer);
+    res.send(screenshotBuffer);
   } catch (err) {
-    console.error("Error generating image:", err.message);
+    console.error("Error generating image:", err.stack || err.message);
 
     if (err.message.includes("ERR_NAME_NOT_RESOLVED")) {
       res.status(400).send("Invalid URL or cannot resolve the domain.");
