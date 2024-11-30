@@ -14,14 +14,9 @@ const downloadImage = async (req, res) => {
   }
 
   try {
-    // تحقق من بيئة Puppeteer واستخدام المسار الصحيح للمتصفح
-    const executablePath =
-      process.env.RENDER ? "/opt/render/.cache/puppeteer/chrome" : undefined;
-
     const browser = await puppeteer.launch({
       headless: true,
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
-      executablePath,
     });
 
     const page = await browser.newPage();
